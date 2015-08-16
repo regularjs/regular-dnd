@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+
+
+
+  
+<script src='https://rawgit.com/sindresorhus/multiline/master/browser.js'></script>
+<script src='../src/regular.js'></script>
+<script src='../src/Dragable.js'></script>
+
+<script>
+
+
+
+
+function getChecked(node){
+  if(!node.children) return node.checked;
+  else return node.children.every(getChecked);
+}
+
+function setChecked(node, checked){
+  
+  if(!node.children) node.checked = checked;
+  else node.children.forEach(function(n){
+    setChecked(n, checked)
+  })
+}
+
+var Node = Regular.extend({
+  computed: {
+    'checked': {
+      set: function(checked){
+        setChecked(this.data.node, checked);
+      },
+      get: function(data){
+        var node = this.data.node;
+        return getChecked(node);
+      }
+    }
+  },
+  name: 'node',
+  template: '<li>{checked} {node.name} <input type="checkbox" r-model="checked" /><ul>{#list node.children as n}<node node={n}/>{/list}</ul></li>'
+})
+
+new Node({
+  data: {
+    node: {
+      name: 1,
+      children: [
+        {
+          name: 11,
+          children: [
+            {name: 111},
+            {name: 112},
+            {name: 113}
+          ]
+        },
+        {
+          name: 12,
+          children: [
+            {name: 121}
+          ]
+        }
+      ]
+    }
+  }
+}).$inject(document.body)
+
+
+
+  
+</script>
+</body>
+</html>

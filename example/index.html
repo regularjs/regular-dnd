@@ -1,0 +1,122 @@
+<!-- 
+@TODO: $getNode
+
+@2: return 1 组织digest;
+
+@update: 实现apply, 避免多余update
+
+@3: dom.once, 绑定一次的dom
+
+
+
+ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <link rel="stylesheet" href="http://ant.design/dist/antd-0.8.0-beta1.css">
+  <link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.css">
+  <style>
+    li{
+      padding: 4px;
+      width: 100px;
+      border: 1px solid #aaa;
+      margin: 4px;
+      text-align: center;
+      cursor: crosshair;;
+      -webkit-user-select: none;
+      list-style:none;
+    }
+    li:hover{
+      background-color: #aaa;
+      color: #fff;
+    }
+    ul.left li{
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+
+
+  
+<script src='https://rawgit.com/sindresorhus/multiline/master/browser.js'></script>
+<script src='./regular.js'></script>
+<script src='../dist/regular-dnd.js'></script>
+
+
+
+<script>
+
+var Tag = Regular.extend({
+  name: 'tag',
+  template: "<div>{title}</div>"
+})
+
+
+  var component = new Regular({
+    template: multiline(function(){/*
+      <dropable name='dimension' on-dragdrop={this.drop2($event)} >
+        <ul style='border: 2px solid #ccc;padding:20px' class='left'>
+          {#list pills as pill}
+          <dragable axis=x key={pill} target={['measure']}> 
+            <li class={pill.placeholder} > <tag title={'第' + pill_index +'名为'+pill+'的标签'} /></li>
+          </dragable>
+          {/list}
+        </ul>
+        <dragable axis=x key={pill} target={['left', 'area1']}> 
+          <div>dadsjdladjakldas</div>
+        </dragable>
+      </dropable>
+
+      <droplist name='measure' 
+        axis=y
+        on-dragenter={in=true} 
+        on-dragleave={in=false} 
+        on-dragdrop='drop' >
+        <ul style='border: 2px solid #ccc;padding:20px;background: {in?"#aaa": "#fff"}'>
+          {#list pills2 as pill}
+          <dragable axis=x key={pill} target={['dimension']} > 
+            <li r-anim='on:enter;class:animated bounceIn'>第{pill_index} 名为{pill}的标签</li>
+          </dragable>
+          {/list}
+        </ul>
+      </droplist>
+    */}),
+    data: {
+      pills: [1,2,3],
+      pills2: [1,2,3],
+      name: "hzzhenghaibo"
+    },
+    drop: function(ev){
+      var data = this.data;
+      data.in = false;
+      var key = ev.data.key;
+      var index = data.pills.indexOf(key);
+      if(index !== -1){
+        data.pills.splice(index, 1)
+      }
+      console.log(key)
+      data.pills2.push(key)
+    },
+    drop2: function(ev){
+      var data = this.data;
+      data.in = false;
+      var key = ev.data.key;
+      var index = data.pills2.indexOf(key);
+      if(index !== -1){
+        data.pills2.splice(index, 1)
+      }
+      data.pills.push(key)
+    },
+    init: function(){
+      this.$on('drop', this.drop)
+    }
+  }).$inject(document.body)
+
+  
+</script>
+</body>
+</html>
