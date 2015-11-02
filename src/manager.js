@@ -7,8 +7,9 @@ let dom = Regular.dom;
 function bindDrag(dragable, position){
   manager.drag = dragable;
   manager.startAt = position;
-  ut.once( document.body, 'mouseup', onmouseup );
-  dom.on( document.body, 'mousemove', onmousemove );
+  ut.once( document, 'mouseup', onmouseup );
+  dom.on( document, 'mousemove', onmousemove );
+  manager.moved = false;
 }
 
 function addDrop(name, component){
@@ -29,18 +30,22 @@ function testDrop(pageX, pageY){
     let test = offset.left < pageX && pageX < (offset.width + offset.left) &&
           offset.top < pageY && pageY < (offset.height + offset.top);
 
-    if(!drop.data.entered){
+    if(manager.drop !== drop){
 
       if(test){
 
-        drop.data.entered = drag;
+
         drop.$emit('dragenter', { drag : drag, drop: drop } )
+        
+        if(manager.drop){
+          manager.drop.$emit('dragleave', { drag: drag, drop: drop });
+        }
         manager.drop = drop;
         return;
       }
 
     }else if( !test ){
-      drop.data.entered = null;
+
       drop.$emit('dragleave', { drag: drag, drop: drop})
       manager.drop = null;
     }
@@ -51,48 +56,97 @@ function testDrop(pageX, pageY){
 
 function onmousemove(ev){
   if(!manager.drag) return
+  ev.preventDefault();
   let placeholder = manager.drag.placeholder;
-  let style = placeholder.style;
+
+
   let startAt = manager.startAt;
 
-  // if (window.getSelection) {
-  //    window.getSelection().removeAllRanges();
-  // } else if (window.document.selection) {
-  //    window.document.selection.empty();
-  // }
+  let drag = manager.drag;
+  let data = drag.data;
 
+  if(!manager.moved){
 
-  style.position = 'absolute';
-  style.display = '';
-  style.left = ev.pageX - startAt.left + 'px';
-  style.top = ev.pageY - startAt.top + 'px';
+    if(data.placeholder !== false){
+      placeholder = drag.placeholder = drag.getPlaceholder(drag.node, drag.data);
+
+      if(placeholder){
+
+        placeholder.style.display = 'none';
+        placeholder.style.zIndex = 1000;
+        dom.inject( placeholder, document.body);
+
+      }
+    }
+    manager.drag.$emit('dragstart', startAt);
+    manager.moved = true;
+  }
+
+  if (window.getSelection) {
+     window.getSelection().removeAllRanges();
+  } else if (window.document.selection) {
+     window.document.selection.empty();
+  }
+
+  if(placeholder){
+    let style = placeholder.style;
+    style.position = 'absolute';
+    style.display = '';
+    style.left = ev.pageX - startAt.left + 'px';
+    style.top = ev.pageY - startAt.top + 'px';
+  }
   manager.testDrop(ev.pageX, ev.pageY);
   let drop  = manager.drop;
 
+  manager.drag.$emit('dragmove',  {
+    drag,
+    drop,
+    position:{
+      left: ev.pageX, 
+      top: ev.pageY
+    }
+  });
+
   if(drop) {
     drop.$emit('dragmove', {
-      left: ev.pageX,
-      top: ev.pageX
+      drop,
+      drag,
+      position:{
+        left: ev.pageX-drop.offset.left,
+        top: ev.pageY-drop.offset.top
+      }
     })
   }
 }
 
 function onmouseup(ev){
-  let node = manager.drag;
+  let drag = manager.drag;
 
-  dom.off(document.body, 'mousemove', onmousemove)
-  if(node){
-    node.$emit('dragend');
-    let drops = manager.drops;
-    manager.drag = null
-    for(let i in drops){
-      let drop = drops[i];
-      let entered = drop.data.entered;
-      drop.$update('entered', null);
-      if(entered){
-        drop.$emit('dragdrop', entered)
+  dom.off(document, 'mousemove', onmousemove)
+
+  if(!manager.moved) return;
+  if(drag){
+    let drop = manager.drop;
+    drag.$emit('dragend', {
+      drop,
+      drag,
+      position: {
+        left: ev.pageX, 
+        top: ev.pageY
       }
+    });
+    if(drop){
+      drop.$emit('dragdrop', {
+        drag,
+        drop,
+        position: {
+          left: ev.pageX-drop.offset.left,
+          top: ev.pageY-drop.offset.top
+        }
+      })
     }
+    manager.drop = null;
+    manager.drag = null
   }
 }
 

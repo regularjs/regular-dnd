@@ -1,0 +1,158 @@
+<!-- 
+@TODO: $getNode
+
+@2: return 1 组织digest;
+
+@update: 实现apply, 避免多余update
+
+@3: dom.once, 绑定一次的dom
+  
+
+
+var list = JSON.stringify([].slice.call(document.querySelectorAll('.block_content #table1 tr'), 1).map(function(node){
+  var resume = node.querySelector('td:nth-child(100n+4) a').href;
+  var tmp = resume.split(/[\(\,\)]/).slice(1,-1).map(function(n){return n.replace(/[\"\']/g, '')});
+  resume = "https://zhaopin.ms.netease.com/resumeposition/resumeDetail.do?phase=3&rpid="+tmp[0]+"&operflag="+tmp[1]+"&passport=" + tmp[2]
+  return { 
+    id: node.querySelector('td:nth-child(100n+2)').innerHTML, 
+    name: node.querySelector('td:nth-child(100n+4) a').innerHTML.replace(/[\s\r\n\t]+/g, ''),
+    resume: resume
+    }
+}), null, 2);
+console.log(list)
+
+ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <!-- <link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.css"> -->
+  <style>
+    li{
+      padding: 4px;
+      width: 100px;
+      border: 4px solid #aaa;
+      margin: 4px;
+      text-align: center;
+      cursor: crosshair;;
+      -webkit-user-select: none;
+      list-style:none;
+    }
+    li:hover{
+      background-color: #aaa;
+      color: #fff;
+    }
+    ul.left li{
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+
+
+  
+<script src='./multiline.js'></script>
+<script src='./regular.js'></script>
+<script src='../dist/regular-dnd.js'></script>
+
+<script>
+
+var store = ReDnd.store;
+store.actions = {
+  left: function(value){
+    store.dispatch({
+      type: 'left',
+      value: parseInt(value,10)
+    })
+  },
+  inc: function(){
+    store.dispatch({
+      type: 'inc'
+    })
+  },
+  dec: function(){
+    store.dispatch({
+      type: 'dec'
+    })
+  },
+  total: function(){
+    store.dispatch({ type: 'add' })
+  },
+  undo: function(){
+    store.dispatch({ type: 'report_undo' })
+  },
+  redo: function(){
+    store.dispatch({ type: 'report_redo' })
+  },
+  seek: function(index){
+    store.dispatch({ type: 'report_seek', payload: index  })
+  }
+}
+
+var Tag = Regular.extend({
+  name: 'tag',
+  template: "<div>{title}</div>"
+})
+
+var ReportComponent = Regular.extend({
+  store: store,
+  dump: true,
+  config: function(data){
+    if(this.mapStateToData){
+      store.subscribe( this.mapState.bind(this) );
+    }
+    data.act = store.actions;
+    this.mapState()
+  },
+  mapState: function(){
+    var state = store.getState();
+
+    if( !state.current ) return;
+
+    this.mapStateToData(state.current, this.data, state);
+  }
+})
+
+var Component = ReportComponent.extend({
+  config: function(data){
+    this.supr(data);
+  var store = this.store;
+  var self = this;
+
+  store.subscribe( function(){
+    setTimeout(function(){
+      self.$update();
+    },100)
+  })
+  },
+  mapStateToData: function(state, data, all){
+
+    data.count = state.count
+    data.timeline = all.timeline
+    data.index = all.index
+
+  },
+  template: multiline(function(){/*
+    <button on-click={act.dec()}>-</button>{count}<button on-click={act.inc()}>+</button>
+    <button on-click={act.redo()}>redo</button> <button on-click={act.undo()}>undo</button>
+
+    {timeline.length}: {index}
+    <ul>
+      {#list timeline as t}
+        <li on-click={act.seek(t_index)} {#if t_index==index } style='background-color:#aaa;' {/if}>{t.count}</li>
+      {/list}
+    </ul>
+  */})
+})
+
+// 1. 断了 如何处理
+// 2. 如何不检测不做记录的行为
+
+var component = new Component().$inject(document.body)
+
+  
+</script>
+</body>
+</html>

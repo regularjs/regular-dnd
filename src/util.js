@@ -41,9 +41,10 @@ function getDimension( elem ){
 }
 
 function remove(list, item){
-  for(let i of list){
+  if(!list) return -1;
+  for(let i =0, len = list.length; i < len; i++){
     if(list[i] === item){
-      list.splice(i)
+      list.splice(i, 1)
       return i;
     }
   }
@@ -55,13 +56,55 @@ function once(elem, ev, handle){
   dom.on( elem, ev, real );
 }
 
+function isInRect(position, dim){
+  if(!position || !dim) return false;
+
+  return position.left > dim.left && (position.left < dim.left + dim.width) &&
+    position.top > dim.top && (position.top < dim.top + dim.height);
+
+}
+
+function getInRanges(offset, ranges){
+
+  for(let len = ranges.length; len-- ;){
+    let rg = ranges[len];
+
+    if(isInRect(offset, rg)){
+
+      return {
+        index: len,
+        dimension: {
+          width: rg.width,
+          height: rg.height,
+          left: offset.left - rg.left,
+          top: offset.top - rg.top
+        }
+      }
+
+    }
+  }
+}
+
+function getDirection(){
+
+}
+
+
+
+
 export default {
 
   getPosition,
   getOffset,
   getDimension,
 
+  isInRect,
+  getInRanges,
+  getDirection,
+
   remove,
+
+  extend,
 
   once
 }

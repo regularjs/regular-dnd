@@ -11,12 +11,11 @@ let Dropable = Regular.extend({
   `,
 
   config( data ){
-    this.data.drags = this.data.drags || [];
     manager.addDrop( data.name, this );
   },
 
   init( data ){
-    this.node = this.$getNode();
+    this.node = Regular.dom.element(this);
   },
 
   destroy(){

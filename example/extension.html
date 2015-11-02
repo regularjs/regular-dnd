@@ -1,0 +1,9 @@
+<script>
+<div on-click.call='this.name=1' del-click.call ='' ></div>
+  var DragTag = Dragable.extend({
+    name: 'drag-tag',
+    template: `
+      <div> {#inc this.$body} </div>
+    `
+  })
+</script>

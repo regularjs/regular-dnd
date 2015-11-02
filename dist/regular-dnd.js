@@ -79,10 +79,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _DropableJs2 = _interopRequireDefault(_DropableJs);
 
-	var _DropListJs = __webpack_require__(6);
-
-	var _DropListJs2 = _interopRequireDefault(_DropListJs);
-
 	var _utilJs = __webpack_require__(2);
 
 	var _utilJs2 = _interopRequireDefault(_utilJs);
@@ -90,7 +86,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports['default'] = {
 	  Dragable: _DragableJs2['default'],
 	  Dropable: _DropableJs2['default'],
-	  DropList: _DropListJs2['default'],
 	  manager: _managerJs2['default'],
 	  util: _utilJs2['default']
 	};
@@ -122,8 +117,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	function bindDrag(dragable, position) {
 	  manager.drag = dragable;
 	  manager.startAt = position;
-	  _util2['default'].once(document.body, 'mouseup', onmouseup);
-	  dom.on(document.body, 'mousemove', onmousemove);
+	  _util2['default'].once(document, 'mouseup', onmouseup);
+	  dom.on(document, 'mousemove', onmousemove);
+	  manager.moved = false;
 	}
 
 	function addDrop(name, component) {
@@ -143,17 +139,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var offset = drop.offset = _util2['default'].getDimension(drop.node);
 	    var test = offset.left < pageX && pageX < offset.width + offset.left && offset.top < pageY && pageY < offset.height + offset.top;
 
-	    if (!drop.data.entered) {
+	    if (manager.drop !== drop) {
 
 	      if (test) {
 
-	        drop.data.entered = drag;
 	        drop.$emit('dragenter', { drag: drag, drop: drop });
+
+	        if (manager.drop) {
+	          manager.drop.$emit('dragleave', { drag: drag, drop: drop });
+	        }
 	        manager.drop = drop;
 	        return;
 	      }
 	    } else if (!test) {
-	      drop.data.entered = null;
+
 	      drop.$emit('dragleave', { drag: drag, drop: drop });
 	      manager.drop = null;
 	    }
@@ -162,47 +161,95 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function onmousemove(ev) {
 	  if (!manager.drag) return;
+	  ev.preventDefault();
 	  var placeholder = manager.drag.placeholder;
-	  var style = placeholder.style;
+
 	  var startAt = manager.startAt;
 
-	  // if (window.getSelection) {
-	  //    window.getSelection().removeAllRanges();
-	  // } else if (window.document.selection) {
-	  //    window.document.selection.empty();
-	  // }
+	  var drag = manager.drag;
+	  var data = drag.data;
 
-	  style.position = 'absolute';
-	  style.display = '';
-	  style.left = ev.pageX - startAt.left + 'px';
-	  style.top = ev.pageY - startAt.top + 'px';
+	  if (!manager.moved) {
+
+	    if (data.placeholder !== false) {
+	      placeholder = drag.placeholder = drag.getPlaceholder(drag.node, drag.data);
+
+	      if (placeholder) {
+
+	        placeholder.style.display = 'none';
+	        placeholder.style.zIndex = 1000;
+	        dom.inject(placeholder, document.body);
+	      }
+	    }
+	    manager.drag.$emit('dragstart', startAt);
+	    manager.moved = true;
+	  }
+
+	  if (window.getSelection) {
+	    window.getSelection().removeAllRanges();
+	  } else if (window.document.selection) {
+	    window.document.selection.empty();
+	  }
+
+	  if (placeholder) {
+	    var style = placeholder.style;
+	    style.position = 'absolute';
+	    style.display = '';
+	    style.left = ev.pageX - startAt.left + 'px';
+	    style.top = ev.pageY - startAt.top + 'px';
+	  }
 	  manager.testDrop(ev.pageX, ev.pageY);
 	  var drop = manager.drop;
 
+	  manager.drag.$emit('dragmove', {
+	    drag: drag,
+	    drop: drop,
+	    position: {
+	      left: ev.pageX,
+	      top: ev.pageY
+	    }
+	  });
+
 	  if (drop) {
 	    drop.$emit('dragmove', {
-	      left: ev.pageX,
-	      top: ev.pageX
+	      drop: drop,
+	      drag: drag,
+	      position: {
+	        left: ev.pageX - drop.offset.left,
+	        top: ev.pageY - drop.offset.top
+	      }
 	    });
 	  }
 	}
 
 	function onmouseup(ev) {
-	  var node = manager.drag;
+	  var drag = manager.drag;
 
-	  dom.off(document.body, 'mousemove', onmousemove);
-	  if (node) {
-	    node.$emit('dragend');
-	    var _drops = manager.drops;
-	    manager.drag = null;
-	    for (var i in _drops) {
-	      var drop = _drops[i];
-	      var entered = drop.data.entered;
-	      drop.$update('entered', null);
-	      if (entered) {
-	        drop.$emit('dragdrop', entered);
+	  dom.off(document, 'mousemove', onmousemove);
+
+	  if (!manager.moved) return;
+	  if (drag) {
+	    var drop = manager.drop;
+	    drag.$emit('dragend', {
+	      drop: drop,
+	      drag: drag,
+	      position: {
+	        left: ev.pageX,
+	        top: ev.pageY
 	      }
+	    });
+	    if (drop) {
+	      drop.$emit('dragdrop', {
+	        drag: drag,
+	        drop: drop,
+	        position: {
+	          left: ev.pageX - drop.offset.left,
+	          top: ev.pageY - drop.offset.top
+	        }
+	      });
 	    }
+	    manager.drop = null;
+	    manager.drag = null;
 	  }
 	}
 
@@ -275,34 +322,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function remove(list, item) {
-	  var _iteratorNormalCompletion = true;
-	  var _didIteratorError = false;
-	  var _iteratorError = undefined;
-
-	  try {
-	    for (var _iterator = list[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-	      var i = _step.value;
-
-	      if (list[i] === item) {
-	        list.splice(i);
-	        return i;
-	      }
-	    }
-	  } catch (err) {
-	    _didIteratorError = true;
-	    _iteratorError = err;
-	  } finally {
-	    try {
-	      if (!_iteratorNormalCompletion && _iterator['return']) {
-	        _iterator['return']();
-	      }
-	    } finally {
-	      if (_didIteratorError) {
-	        throw _iteratorError;
-	      }
+	  if (!list) return -1;
+	  for (var i = 0, len = list.length; i < len; i++) {
+	    if (list[i] === item) {
+	      list.splice(i, 1);
+	      return i;
 	    }
 	  }
-
 	  return -1;
 	}
 
@@ -313,13 +339,47 @@ return /******/ (function(modules) { // webpackBootstrap
 	  dom.on(elem, ev, real);
 	}
 
+	function isInRect(position, dim) {
+	  if (!position || !dim) return false;
+
+	  return position.left > dim.left && position.left < dim.left + dim.width && position.top > dim.top && position.top < dim.top + dim.height;
+	}
+
+	function getInRanges(offset, ranges) {
+
+	  for (var len = ranges.length; len--;) {
+	    var rg = ranges[len];
+
+	    if (isInRect(offset, rg)) {
+
+	      return {
+	        index: len,
+	        dimension: {
+	          width: rg.width,
+	          height: rg.height,
+	          left: offset.left - rg.left,
+	          top: offset.top - rg.top
+	        }
+	      };
+	    }
+	  }
+	}
+
+	function getDirection() {}
+
 	exports['default'] = {
 
 	  getPosition: getPosition,
 	  getOffset: getOffset,
 	  getDimension: getDimension,
 
+	  isInRect: isInRect,
+	  getInRanges: getInRanges,
+	  getDirection: getDirection,
+
 	  remove: remove,
+
+	  extend: extend,
 
 	  once: once
 	};
@@ -367,42 +427,54 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  template: '{#include this.$body}',
 
-	  config: function config() {
-	    var _this = this;
+	  config: function config(data) {
 
 	    var $outer = this.$outer;
 	    if (!($outer instanceof _Dropable2['default'])) return;
 
-	    var drags = $outer.data.drags;
-	    drags.push(this);
+	    this.drop = $outer;
 
-	    this.$on('$destroy', function () {
-	      return _util2['default'].remove(drags, _this);
-	    });
+	    $outer.$emit('add_drag', this);
 	  },
 
 	  init: function init() {
 	    var data = this.data;
-	    var handle = this.handle = this.$getNode();
+	    var node = this.node = dom.element(this);
+
+	    dom.addClass(node, 'dragable');
 
 	    var body = undefined;
 
 	    this.$on('dragend', function () {
+	      if (!this.placeholder) return;
 	      dom.remove(this.placeholder);
 	      this.placeholder = null;
 	    });
 
+	    var handle = this.handle = data.handle && node.querySelector(data.handle) || node;
+
 	    dom.on(handle, 'mousedown', (function (ev) {
-	      var placeholder = this.placeholder = handle.cloneNode(true);
-	      var pos = _util2['default'].getPosition(handle);
-	      dom.inject(placeholder, document.body);
-	      placeholder.style.display = 'none';
+
+	      // disabled right-click
+	      if (ev.which !== 1) return;
+
+	      var pos = _util2['default'].getPosition(node);
+
 	      _manager2['default'].bindDrag(this, { left: ev.pageX - pos.left, top: ev.pageY - pos.top });
 	    }).bind(this));
 	  },
+	  getPlaceholder: function getPlaceholder(node, key) {
+	    return node.cloneNode(true);
+	  }
 
-	  getOffset: function getOffset() {
-	    return _util2['default'].getOffset(this.handle);
+	});
+
+	_Dropable2['default'].Handler = _regularjs2['default'].extend({
+	  template: '{#inc this.$body}',
+	  config: function config() {
+	    if (this.$outer instanceof _Dropable2['default']) {
+	      this.$outer.data.header = this;
+	    }
 	  }
 	});
 
@@ -439,12 +511,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  template: '\n  <div class=\'{klass} dropable\'>{#inc this.$body}</div>\n  ',
 
 	  config: function config(data) {
-	    this.data.drags = this.data.drags || [];
 	    _manager2['default'].addDrop(data.name, this);
 	  },
 
 	  init: function init(data) {
-	    this.node = this.$getNode();
+	    this.node = _regularjs2['default'].dom.element(this);
 	  },
 
 	  destroy: function destroy() {
@@ -456,40 +527,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	exports['default'] = Dropable;
 	module.exports = exports['default'];
-
-/***/ },
-/* 6 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-	var _Dropable = __webpack_require__(5);
-
-	var _Dropable2 = _interopRequireDefault(_Dropable);
-
-	var DropList = _Dropable2['default'].extend({
-
-	  name: 'droplist',
-
-	  init: function init() {
-	    this.supr();
-	    var data = this.data;
-	    var offsets = [];
-
-	    this.$on('dragenter', function () {
-	      var drags = data.drags;
-	      drags.forEach(function (drag) {
-	        offsets.push(drag.getOffset());
-	      });
-	    });
-
-	    this.$on('dragleave', function () {});
-
-	    this.$on('dragmove', function (arg) {});
-	  }
-	});
 
 /***/ }
 /******/ ])

@@ -8,6 +8,22 @@
 @3: dom.once, 绑定一次的dom
 
 
+-----
+
+1. 将临时状态独立出来， 无需记录, 比如下拉自动补全
+  
+
+var list = JSON.stringify([].slice.call(document.querySelectorAll('.block_content #table1 tr'), 1).map(function(node){
+  var resume = node.querySelector('td:nth-child(100n+4) a').href;
+  var tmp = resume.split(/[\(\,\)]/).slice(1,-1).map(function(n){return n.replace(/[\"\']/g, '')});
+  resume = "https://zhaopin.ms.netease.com/resumeposition/resumeDetail.do?phase=3&rpid="+tmp[0]+"&operflag="+tmp[1]+"&passport=" + tmp[2]
+  return { 
+    id: node.querySelector('td:nth-child(100n+2)').innerHTML, 
+    name: node.querySelector('td:nth-child(100n+4) a').innerHTML.replace(/[\s\r\n\t]+/g, ''),
+    resume: resume
+    }
+}), null, 2);
+console.log(list)
 
  -->
 <!DOCTYPE html>
@@ -15,13 +31,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Document</title>
-  <link rel="stylesheet" href="http://ant.design/dist/antd-0.8.0-beta1.css">
-  <link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.css">
+  <!-- <link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.css"> -->
   <style>
     li{
       padding: 4px;
       width: 100px;
-      border: 1px solid #aaa;
+      border: 4px solid #aaa;
       margin: 4px;
       text-align: center;
       cursor: crosshair;;
@@ -39,83 +54,154 @@
 </head>
 <body>
 
+<div class='m-bar'>
+<dropable name='column' axis=x>
+<ul>
+  {#list pills as pill}
+  <dragable key={pill}>
+    <li></li>
+  </dragable>
+  {/list}
+  <li><input type="text" on-keypress='keypress' ></li>
+</ul>
+</dropable>
+<suggestion list={list} on-select={action.addPill('column', $event)} />
+</div>
+
+
 
 
   
-<script src='https://rawgit.com/sindresorhus/multiline/master/browser.js'></script>
+<script src='./multiline.js'></script>
 <script src='./regular.js'></script>
 <script src='../dist/regular-dnd.js'></script>
 
-
-
 <script>
+
+/**
+ * Suggestion
+ * -------
+ */
+
+var store = ReDnd.store;
+
+var reducer = function( state, action ){
+  switch(action.type){
+    case 'push_dimension': 
+      state.column
+    case 'swip_list': 
+    case 'swip_list': 
+  }
+}
+ 
+store.actions = {
+  inject: function(list, item, index){
+    store.dispatch({
+      type: 'swip'
+    })
+  }
+}
+
 
 var Tag = Regular.extend({
   name: 'tag',
   template: "<div>{title}</div>"
 })
 
+var ReportComponent = Regular.extend({
+  store: store,
+  dump: true,
+  config: function(data){
 
-  var component = new Regular({
-    template: multiline(function(){/*
-      <dropable name='dimension' on-dragdrop={this.drop2($event)} >
-        <ul style='border: 2px solid #ccc;padding:20px' class='left'>
-          {#list pills as pill}
-          <dragable axis=x key={pill} target={['measure']}> 
-            <li class={pill.placeholder} > <tag title={'第' + pill_index +'名为'+pill+'的标签'} /></li>
-          </dragable>
-          {/list}
-        </ul>
-        <dragable axis=x key={pill} target={['left', 'area1']}> 
-          <div>dadsjdladjakldas</div>
-        </dragable>
-      </dropable>
-
-      <droplist name='measure' 
-        axis=y
-        on-dragenter={in=true} 
-        on-dragleave={in=false} 
-        on-dragdrop='drop' >
-        <ul style='border: 2px solid #ccc;padding:20px;background: {in?"#aaa": "#fff"}'>
-          {#list pills2 as pill}
-          <dragable axis=x key={pill} target={['dimension']} > 
-            <li r-anim='on:enter;class:animated bounceIn'>第{pill_index} 名为{pill}的标签</li>
-          </dragable>
-          {/list}
-        </ul>
-      </droplist>
-    */}),
-    data: {
-      pills: [1,2,3],
-      pills2: [1,2,3],
-      name: "hzzhenghaibo"
-    },
-    drop: function(ev){
-      var data = this.data;
-      data.in = false;
-      var key = ev.data.key;
-      var index = data.pills.indexOf(key);
-      if(index !== -1){
-        data.pills.splice(index, 1)
-      }
-      console.log(key)
-      data.pills2.push(key)
-    },
-    drop2: function(ev){
-      var data = this.data;
-      data.in = false;
-      var key = ev.data.key;
-      var index = data.pills2.indexOf(key);
-      if(index !== -1){
-        data.pills2.splice(index, 1)
-      }
-      data.pills.push(key)
-    },
-    init: function(){
-      this.$on('drop', this.drop)
+    if(this.mapStateToData){
+      store.subscribe( this.mapState.bind(this) );
     }
-  }).$inject(document.body)
 
+    data.action = store.actions;
+    this.mapState()
+  },
+  mapState: function(){
+
+    var state = store.getState().current;
+    if( !state ) return;
+    debugger
+    this.mapStateToData( state, this.data );
+  }
+})
+
+var Component = ReportComponent.extend({
+  template: multiline(function(){/*
+
+    <droplist name='dimension' name='dimension' direct=y list={pills} >
+      <ul style='border: 4px solid #ccc;padding:20px' class='left'>
+        {#list pills as pill}
+        <dragable key={pill} target={['measure']}> 
+          <li class={pill.placeholder} > <tag title={'第' + pill_index +'名为'+pill.name+'的标签'} /></li>
+        </dragable>
+        {/list}
+      </ul>
+    </droplist>
+
+    <droplist name='measure' 
+      direct=y
+      list={pills2}
+      on-dragenter={in=true} 
+      on-dragleave={in=false} 
+      on-dragdrop={in=false} >
+      <ul style='border: 4px solid #ccc;padding:20px;background: {in?"#eee": "#fff"}'>
+        {#list pills2 as pill}
+        <dragable axis=y key={pill} target={['dimension', 'measure']} > 
+          <li r-anim='on:enter;class:animated bounceIn' on-click={pills2.splice(pill_index,1)}>第{pill_index} 名为{pill.name}的标签</li>
+        </dragable>
+        {/list}
+      </ul>
+    </droplist>
+  */}),
+  data: {
+    pills: [{name:'a'}, {name:'b'}, {name:'c'}],
+    pills2: [{name:'c'}, {name:'d'}, {name:'e'}],
+    name: "hzzhenghaibo"
+  },
+  config: function(){
+    this.supr(data);
+    var store = this.store;
+    var self = this;
+    
+    store.subscribe( function(){
+      setTimeout(function(){
+        self.$update();
+      },100)
+    })
+  },
+  drop: function(ev){
+    var drag = ev.drag;
+    var data = this.data;
+    data.in = false;
+    var key = drag.data.key;
+    var index = data.pills.indexOf(key);
+    if(index !== -1){
+      data.pills.splice(index, 1)
+    }
+    data.pills2.push(key)
+  },
+  drop2: function(ev){
+    var drag = ev.drag;
+    var data = this.data;
+    data.in = false;
+    var key = drag.data.key;
+    var index = data.pills2.indexOf(key);
+    if(index !== -1){
+      data.pills2.splice(index, 1)
+    }
+    data.pills.push(key)
+  },
+  init: function(){
+    this.$on('drop', this.drop)
+  }
+})
+
+
+var component = new Component({ }).$inject(document.body)
   
 </script>
 </body>

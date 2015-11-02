@@ -1,0 +1,138 @@
+<!-- 
+@TODO: $getNode
+
+@2: return 1 组织digest;
+
+@update: 实现apply, 避免多余update
+
+@3: dom.once, 绑定一次的dom
+
+
+-----
+
+1. 将临时状态独立出来， 无需记录, 比如下拉自动补全
+  
+
+var list = JSON.stringify([].slice.call(document.querySelectorAll('.block_content #table1 tr'), 1).map(function(node){
+  var resume = node.querySelector('td:nth-child(100n+4) a').href;
+  var tmp = resume.split(/[\(\,\)]/).slice(1,-1).map(function(n){return n.replace(/[\"\']/g, '')});
+  resume = "https://zhaopin.ms.netease.com/resumeposition/resumeDetail.do?phase=3&rpid="+tmp[0]+"&operflag="+tmp[1]+"&passport=" + tmp[2]
+  return { 
+    id: node.querySelector('td:nth-child(100n+2)').innerHTML, 
+    name: node.querySelector('td:nth-child(100n+4) a').innerHTML.replace(/[\s\r\n\t]+/g, ''),
+    resume: resume
+    }
+}), null, 2);
+console.log(list)
+
+ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <!-- <link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.css"> -->
+  <style>
+    li{
+      padding: 4px;
+      width: 100px;
+      border: 4px solid #aaa;
+      margin: 4px;
+      text-align: center;
+      cursor: crosshair;;
+      -webkit-user-select: none;
+      list-style:none;
+    }
+    li:hover{
+      background-color: #aaa;
+      color: #fff;
+    }
+    ul.left li{
+      display: inline-block;
+    }
+    .m-slider{
+
+    }
+    .m-slider .slider_cnt{
+      position: relative;
+    }
+    .m-slider .csr{
+      cursor: hand;
+      position: absolute;
+      box-sizing: border-box;
+      width: 12px;
+      height: 12px;
+      margin-left: -6px; 
+      top: -2px;
+      border: 2px solid #ccc;
+      background-color: #333;
+    }
+    .m-slider .bar{
+      top: 0px;
+      height: 8px;
+      position: absolute;
+      box-sizing: border-box;
+      background-color: #444;
+    }
+    .m-slider .inner{
+      box-sizing: border-box;
+      background-color: #fff;
+      border: 1px solid #999;
+      height: 8px;
+    }
+
+  </style>
+</head>
+<body>
+
+
+
+
+
+  
+<script src='./multiline.js'></script>
+<script src='./regular.js'></script>
+<script src='../dist/regular-dnd.js'></script>
+
+
+
+<script>
+
+var extend = Regular.util.extend;
+var RangeSlider = Regular.extend({
+  name: 'slider',
+  template: multiline(function(){/*
+    <div class="m-slider " >
+      <div class="slider_cnt" >
+        <div class="inner"  ></div>
+        <div class="bar" style='left: { (vmin-min)/range * 100}%; width: {(max-min)/range * 100}%' ref=bar></div>
+        <div class="csr csr-l" r-hide={ mode == 'min' }  style='left: { (vmin-min)/range * 100}%;'></div>
+        <div class="csr csr-l" r-hide={mode=='max'} style='right: { (max-vmax)/range * 100}%;'></div>
+      </div>
+    </div>
+  */}),
+  config: function(data){
+    extend(data, {
+      vmin: 0,
+      vmax: data.max,
+      mode: 'max'
+    })
+    data.range = data.max - (data.min||0);
+  }
+})
+
+
+new Regular({
+  template: multiline(function(){/*
+    <slider vmin={value1} vmax={value2}></slider>
+    <input r-model='value1' />
+    <input r-model='value2' />
+  */})
+}).$inject('body')
+
+
+
+  
+</script>
+</body>
+</html>

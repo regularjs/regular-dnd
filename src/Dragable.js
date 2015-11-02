@@ -11,41 +11,65 @@ let Dragable = Regular.extend({
 
   template:'{#include this.$body}',
 
-  config (){
+  config (data){
+
     let $outer = this.$outer;
     if( !($outer instanceof Dropable)) return 
 
-    let drags = $outer.data.drags;
-    drags.push(this);
+    this.drop = $outer;
 
-    this.$on('$destroy', () => util.remove(drags, this) );
+    $outer.$emit('add_drag', this);
 
   },
 
   init() {
     let data = this.data;
-    let handle = this.handle = this.$getNode();
+    let node = this.node = dom.element(this);
+
+    dom.addClass(node, 'dragable');
 
     let body;
 
     this.$on('dragend', function(){
+      if(!this.placeholder) return;
       dom.remove(this.placeholder)
       this.placeholder = null;
     })
 
+    let handle = this.handle = data.handle && node.querySelector(data.handle) || node;
+
+
     dom.on(handle, 'mousedown' , function(ev){
-      let placeholder = this.placeholder = handle.cloneNode(true);
-      let pos = util.getPosition( handle );
-      dom.inject( placeholder, document.body);
-      placeholder.style.display = 'none';
+
+      // disabled right-click
+      if(ev.which !== 1) return;
+
+
+        
+      let pos = util.getPosition( node );
+
       manager.bindDrag(this, { left: ev.pageX - pos.left, top: ev.pageY - pos.top});
+
     }.bind(this))
 
   },
+  getPlaceholder: function(node, key){
+    return node.cloneNode(true)
+  }
 
-  getOffset(){
-    return util.getOffset(this.handle);
+})
+
+Dropable.Handler = Regular.extend({
+  template: '{#inc this.$body}',
+  config: function(){
+    if(this.$outer instanceof Dropable){
+      this.$outer.data.header = this;
+    }
   }
 })
 
 export default Dragable;
+
+
+
+

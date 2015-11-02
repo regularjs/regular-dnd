@@ -920,13 +920,24 @@ _.trackErrorPos = (function (){
   // linebreak
   var lb = /\r\n|[\n\r\u2028\u2029]/g;
   var minRange = 20, maxRange = 20;
-  function findLine(lines, pos){
+  function findLine(lines, pos, input){
     var tmpLen = 0;
+    var matched, pre, num=0;
+    while(matched = lb.exec(input)){
+      if(pre && pre.index <= pos && matched.index > pos){
+        return {num: num, line: input.slice(pre.index+matched[0].length, matched.index), start: pos - pre.index}
+        break;
+      }
+      num++;
+      pre = matched;
+      console.log(pre.index, pos)
+    }
+    lb.lastIndex = 0;
     for(var i = 0,len = lines.length; i < len; i++){
       var lineLen = (lines[i] || "").length;
 
       if(tmpLen + lineLen > pos) {
-        return {num: i, line: lines[i], start: pos - i - tmpLen , prev:lines[i-1], next: lines[i+1] };
+        return {num: i, line: lines[i], start: pos - tmpLen , prev:lines[i-1], next: lines[i+1] };
       }
       // 1 is for the linebreak
       tmpLen = tmpLen + lineLen ;
@@ -939,6 +950,7 @@ _.trackErrorPos = (function (){
     var max = start + maxRange;
     if(max > len) max = len;
 
+
     var remain = str.slice(min, max);
     var prefix = "[" +(num+1) + "] " + (min > 0? ".." : "")
     var postfix = max < len ? "..": "";
@@ -950,12 +962,13 @@ _.trackErrorPos = (function (){
     if(pos > input.length-1) pos = input.length-1;
     lb.lastIndex = 0;
     var lines = input.split(lb);
-    var line = findLine(lines,pos);
+    var line = findLine(lines,pos, input);
+    console.log(line)
     var start = line.start, num = line.num;
 
-    return (line.prev? formatLine(line.prev, start, num-1 ) + '\n': '' ) + 
-      formatLine(line.line, start, num, true) + '\n' + 
-      (line.next? formatLine(line.next, start, num+1 ) + '\n': '' );
+    return formatLine(line.line, start, num, true) + '\n'
+      // (line.next? formatLine(line.next, start, num+1 ) + '\n': '' );
+      // (line.prev? formatLine(line.prev, start, num-1 ) + '\n': '' ) + 
 
   }
 })();
@@ -1153,7 +1166,7 @@ _.handleEvent = function(value, type ){
       var res = evaluate(self);
       if(res === false && obj && obj.preventDefault) obj.preventDefault();
       self.data.$event = undefined;
-      if(res !== 1) self.$update();
+      if(res !== 1 && !self.dump) self.$update();
     }
   }else{
     return function fire(){
