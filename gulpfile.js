@@ -23,7 +23,7 @@ var wpConfig = {
     libraryTarget: "umd"
   },
   externals: {
-    "regularjs": "Regular"
+    "regularjs": "regularjs"
   },
   module: {
     loaders: [
@@ -34,14 +34,14 @@ var wpConfig = {
 
 gulp.task('jshint', function(){
       // jshint
-  gulp.src(['src/**/*.js', '!src/regular.js'])
+  gulp.src(['lib/**/*.js', '!lib/regular.js'])
     .pipe(jshint())
     .pipe(jshint.reporter('default'))
 })
 
 
 gulp.task('build', [ 'jshint'  ], function() {
-  gulp.src("src/index.js")
+  gulp.src("lib/index.js")
     .pipe(webpack(wpConfig))
     .pipe(wrap(signatrue))
     .pipe(gulp.dest('./dist'))
@@ -55,7 +55,7 @@ gulp.task('build', [ 'jshint'  ], function() {
 
 
 gulp.task('watch', ["build"], function(){
-  gulp.watch(['src/**' ], ['build']);
+  gulp.watch(['lib/**' ], ['build']);
 })
 
 

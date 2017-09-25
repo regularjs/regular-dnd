@@ -5,13 +5,13 @@
 */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("Regular"));
+		module.exports = factory(require("regularjs"));
 	else if(typeof define === 'function' && define.amd)
-		define(["Regular"], factory);
+		define(["regularjs"], factory);
 	else if(typeof exports === 'object')
-		exports["ReDnd"] = factory(require("Regular"));
+		exports["ReDnd"] = factory(require("regularjs"));
 	else
-		root["ReDnd"] = factory(root["Regular"]);
+		root["ReDnd"] = factory(root["regularjs"]);
 })(this, function(__WEBPACK_EXTERNAL_MODULE_3__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
@@ -113,12 +113,29 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var drops = {};
 	var dom = _regularjs2['default'].dom;
+	var tid = null;
 
 	function bindDrag(dragable, position) {
 	  manager.drag = dragable;
 	  manager.startAt = position;
-	  _util2['default'].once(document, 'mouseup', onmouseup);
-	  dom.on(document, 'mousemove', onmousemove);
+	  if (!_util2['default'].supportTouch) {
+	    dom.on(document, _util2['default'].MOUSE_MOVE, onmousemove);
+	    _util2['default'].once(document, _util2['default'].MOUSE_UP, onmouseup);
+	  } else {
+	    tid = setTimeout(function () {
+	      tid = null;
+	      dom.on(document, _util2['default'].MOUSE_MOVE, onmousemove);
+	      _util2['default'].once(document, _util2['default'].MOUSE_UP, onmouseup);
+	    }, 100);
+	    _util2['default'].once(document, _util2['default'].MOUSE_MOVE, function (ev) {
+	      if (tid) clearTimeout(tid);
+	      tid = null;
+	    });
+	    _util2['default'].once(document, _util2['default'].MOUSE_UP, function (ev) {
+	      if (tid) clearTimeout(tid);
+	      tid = null;
+	    });
+	  }
 	  manager.moved = false;
 	}
 
@@ -130,12 +147,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  delete drops[name];
 	}
 
-	function testDrop(pageX, pageY) {
-	  var drag = manager.drag;
-	  var target = drag.data.target || [];
+	function getActiveDrop(drag, drops) {
+	  var ret = [];
 	  for (var i in drops) {
 	    var drop = drops[i];
-	    if (target.indexOf(drop.data.name) === -1) continue;
+	    if (drag.validate(drop.data.name)) ret.push(drop);
+	  }
+	  return ret;
+	}
+
+	function testDrop(pageX, pageY) {
+	  var drag = manager.drag;
+	  for (var i in drops) {
+	    var drop = drops[i];
+	    if (!drag.validate(drop.data.name)) continue;
 	    var offset = drop.offset = _util2['default'].getDimension(drop.node);
 	    var test = offset.left < pageX && pageX < offset.width + offset.left && offset.top < pageY && pageY < offset.height + offset.top;
 
@@ -160,9 +185,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function onmousemove(ev) {
-	  if (!manager.drag) return;
+	  if (+new Date() - tid) if (!manager.drag) return;
+
+	  ev.stopPropagation();
 	  ev.preventDefault();
 	  var placeholder = manager.drag.placeholder;
+
+	  if (/touch/.test(ev.type)) ev = ev.event.touches[0];
 
 	  var startAt = manager.startAt;
 
@@ -170,6 +199,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var data = drag.data;
 
 	  if (!manager.moved) {
+
+	    if (ev.pageX === startAt.left && ev.pageY === startAt.top) return;
 
 	    if (data.placeholder !== false) {
 	      placeholder = drag.placeholder = drag.getPlaceholder(drag.node, drag.data);
@@ -181,8 +212,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        dom.inject(placeholder, document.body);
 	      }
 	    }
-	    manager.drag.$emit('dragstart', startAt);
+	    manager.drag.$emit('dragstart', { position: startAt });
+	    var actives = getActiveDrop(drag, drops);
+	    manager.$emit('active', { drag: drag, drops: actives });
+	    actives.forEach(function (active) {
+	      active.$emit('active', { drag: drag, drop: active });
+	    });
 	    manager.moved = true;
+
+	    manager.testDrop(ev.pageX, ev.pageY);
+	    return true;
 	  }
 
 	  if (window.getSelection) {
@@ -195,8 +234,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var style = placeholder.style;
 	    style.position = 'absolute';
 	    style.display = '';
-	    style.left = ev.pageX - startAt.left + 'px';
-	    style.top = ev.pageY - startAt.top + 'px';
+	    style.left = ev.pageX - startAt.left + startAt.origin.left + 'px';
+	    style.top = ev.pageY - startAt.top + startAt.origin.top + 'px';
 	  }
 	  manager.testDrop(ev.pageX, ev.pageY);
 	  var drop = manager.drop;
@@ -207,7 +246,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    position: {
 	      left: ev.pageX,
 	      top: ev.pageY
-	    }
+	    },
+	    origin: startAt.origin
 	  });
 
 	  if (drop) {
@@ -219,15 +259,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	        top: ev.pageY - drop.offset.top
 	      }
 	    });
+	    // 测试是否有viewport存在
+	    // var viewport = drop.data.viewport;
+
+	    // if( viewport ){
+	    //   var dimension = ut.getDimension(viewport);
+
+	    // }
 	  }
+	  return true;
 	}
 
 	function onmouseup(ev) {
 	  var drag = manager.drag;
+	  var startAt = manager.startAt;
 
-	  dom.off(document, 'mousemove', onmousemove);
+	  if (/touch/.test(ev.type)) ev = ev.event.changedTouches[0];
 
-	  if (!manager.moved) return;
+	  dom.off(document, _util2['default'].MOUSE_MOVE, onmousemove);
+
+	  ev.stopPropagation();
+
+	  if (!manager.moved || ev.pageX === startAt.left && ev.pageY === startAt.top) return;
 	  if (drag) {
 	    var drop = manager.drop;
 	    drag.$emit('dragend', {
@@ -236,7 +289,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      position: {
 	        left: ev.pageX,
 	        top: ev.pageY
-	      }
+	      },
+	      origin: startAt.origin
 	    });
 	    if (drop) {
 	      drop.$emit('dragdrop', {
@@ -248,13 +302,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      });
 	    }
+	    manager.$emit('dragend', { drag: manager.drag, drop: manager.drop });
 	    manager.drop = null;
 	    manager.drag = null;
 	  }
 	}
 
-	var manager = {
-
+	var Manager = _regularjs2['default'].extend({
 	  drops: drops,
 	  addDrop: addDrop,
 	  delDrop: delDrop,
@@ -264,7 +318,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  onmousemove: onmousemove,
 	  onmouseup: onmouseup
-	};
+	});
+
+	var manager = new Manager();
 
 	exports['default'] = manager;
 	module.exports = exports['default'];
@@ -291,6 +347,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	var win = window;
 	var extend = _regularjs2['default'].util.extend;
 	var dom = _regularjs2['default'].dom;
+	var supportTouch = 'ontouchstart' in document && !('onmousedown' in document);
+
+	var MOUSE_DOWN = supportTouch ? 'touchstart' : 'mousedown';
+	var MOUSE_MOVE = supportTouch ? 'touchmove' : 'mousemove';
+	var MOUSE_UP = supportTouch ? 'touchend' : 'mouseup';
 
 	function getPosition(elem) {
 	  var doc = elem && elem.ownerDocument,
@@ -381,6 +442,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  extend: extend,
 
+	  MOUSE_UP: MOUSE_UP,
+	  MOUSE_MOVE: MOUSE_MOVE,
+	  MOUSE_DOWN: MOUSE_DOWN,
+
+	  supportTouch: supportTouch,
+
 	  once: once
 	};
 	module.exports = exports['default'];
@@ -419,6 +486,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _util2 = _interopRequireDefault(_util);
 
+	var toStr = ({}).toString;
 	var dom = _regularjs2['default'].dom;
 
 	var Dragable = _regularjs2['default'].extend({
@@ -430,6 +498,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	  config: function config(data) {
 
 	    var $outer = this.$outer;
+	    var target = data.target;
+
+	    if (toStr.call(target) === '[object RegExp]') {
+	      this._validateTarget = function (name) {
+	        return target.test(name);
+	      };
+	    } else if (Array.isArray(target)) {
+	      this._validateTarget = function (name) {
+	        return target.indexOf(name) !== -1;
+	      };
+	    } else if (typeof target === 'function') {
+	      this._validateTarget = function (name) {
+	        return !!target(name);
+	      };
+	    }
+
 	    if (!($outer instanceof _Dropable2['default'])) return;
 
 	    this.drop = $outer;
@@ -453,15 +537,34 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var handle = this.handle = data.handle && node.querySelector(data.handle) || node;
 
-	    dom.on(handle, 'mousedown', (function (ev) {
+	    var callback = (function (ev) {
 
+	      var isTouch = /touch/.test(ev.type);
+	      if (isTouch) {
+	        ev = ev.event.touches[0];
+	      }
 	      // disabled right-click
-	      if (ev.which !== 1) return;
+	      else if (ev.which !== 1) return;
+
+	      ev.stopPropagation();
 
 	      var pos = _util2['default'].getPosition(node);
 
-	      _manager2['default'].bindDrag(this, { left: ev.pageX - pos.left, top: ev.pageY - pos.top });
-	    }).bind(this));
+	      _manager2['default'].bindDrag(this, { left: ev.pageX, top: ev.pageY, origin: pos });
+	    }).bind(this);
+
+	    if (!this.data.disabled) {
+	      dom.on(handle, _util2['default'].MOUSE_DOWN, callback);
+	    }
+	  },
+
+	  _validateTarget: function _validateTarget() {
+	    return false;
+	  },
+
+	  validate: function validate(name) {
+
+	    return this._validateTarget(name);
 	  },
 	  getPlaceholder: function getPlaceholder(node, key) {
 	    return node.cloneNode(true);

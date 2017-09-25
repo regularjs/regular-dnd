@@ -1,9 +1,64 @@
+<style>
+  ul{
+    border: 1px solid #ccc;
+    padding: 20px;
+  }
+  .anim{
+    overflow: hidden;
+    background-color: #ccc;
+  }
+  .anim.show{
+    transition: opacity .5s; 
+    opacity: 1;
+  }
+</style>
+<div id='app'></div>
+<script src='./regular.js'></script>
+<script src='../dist/regular-dnd.js'></script>
 <script>
-<div on-click.call='this.name=1' del-click.call ='' ></div>
-  var DragTag = Dragable.extend({
-    name: 'drag-tag',
-    template: `
-      <div> {#inc this.$body} </div>
-    `
-  })
+var App = Regular.extend({
+  name: 'drag-tag',
+  template: `
+    <div class="anim" >
+    <button on-click={this.add('a')}>+</button>
+    <dropable direct=y name=a on-drop={this.drop($event)} >
+      <ul>
+        {#list a as item}
+        <dragable target={['b']} key={item} >
+          <li>{item.name}</li>
+        </dragable>
+        {/list}
+      </ul>
+    </dropable>
+    </div>
+    <div class='anim' >
+    <button on-click={this.add('b')}>+</button>
+    <dropable direct=x name=b on-drop={this.drop($event)} >
+      <ul>
+        {#list b as item}
+        <dragable target={['a']} key={item} >
+          <li>{item.name}</li>
+        </dragable>
+        {/list}
+      </ul>
+    </dropable>
+    </div>
+  `,
+  config: function(data){
+    data.a = [];
+    data.b = [];
+  },
+  drop: function(ev){
+    var item = ev.drag.data.key;
+    var data = this.data;
+    data[ev.drop.data.name].push(item);
+  },
+  add: function(area){
+    this.data[area].push({
+      name: 'filed'+ parseInt(Math.random() * 100)
+    })
+  }
+
+});
+new App().$inject('#app')
 </script>
